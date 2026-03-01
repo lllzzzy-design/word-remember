@@ -16,23 +16,45 @@ export default function Home() {
   useEffect(() => {
     fetchWords(level)
   }, [level])
-
+  
   async function fetchWords(selectedLevel: string) {
-    const { data, error } = await supabase
-      .from('words')
-      .select('*')
-      .eq('level', selectedLevel)
+  const { data, error } = await supabase
+    .from('words')
+    .select('*')
+    .eq('level', selectedLevel)
 
-    if (error) {
-      console.error(error)
-      return
-    }
-
-    if (data && data.length > 0) {
-      setWords(data)
-      pickRandomWord(data)
-    }
+  if (error) {
+    console.error(error)
+    return
   }
+
+  if (data && data.length > 0) {
+    setWords(data)
+    pickRandomWord(data)
+  } else {
+    setWords([])
+    setCurrent(null)
+  }
+}
+
+async function deleteWord(id: number) {
+  const confirmDelete = confirm("确定删除这个单词吗？")
+
+  if (!confirmDelete) return
+
+  const { error } = await supabase
+    .from('words')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error(error)
+    return
+  }
+
+  // 重新加载当前等级
+  fetchWords(level)
+}
 
   function pickRandomWord(wordList: any[]) {
     const random =
@@ -160,23 +182,32 @@ export default function Home() {
           </>
         )}
 
-        <div className="mt-6">
-          {!showMeaning ? (
-            <button
-              onClick={() => setShowMeaning(true)}
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-              显示释义
-            </button>
-          ) : (
-            <button
-              onClick={nextWord}
-              className="bg-green-500 text-white px-4 py-2 rounded"
-            >
-              下一个
-            </button>
-          )}
-        </div>
+        <div className="mt-6 flex flex-col gap-3">
+
+  {!showMeaning ? (
+    <button
+      onClick={() => setShowMeaning(true)}
+      className="bg-blue-500 text-white px-4 py-2 rounded"
+    >
+      显示释义
+    </button>
+  ) : (
+    <button
+      onClick={nextWord}
+      className="bg-green-500 text-white px-4 py-2 rounded"
+    >
+      下一个
+    </button>
+  )}
+
+  <button
+    onClick={() => deleteWord(current.id)}
+    className="bg-red-500 text-white px-4 py-2 rounded"
+  >
+    删除当前单词
+  </button>
+
+</div>
       </div>
     </main>
   )
