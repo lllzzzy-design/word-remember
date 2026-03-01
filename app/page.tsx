@@ -68,28 +68,33 @@ async function deleteWord(id: number) {
   }
   
   async function addWord() {
-  if (!newWord || !newMeaning) return
+
+  if (!newWord.trim() || 
+      !newMeaning.trim() || 
+      !newExample.trim()) {
+    alert("请完整填写单词、释义和例句")
+    return
+  }
 
   const { error } = await supabase.from('words').insert([
     {
-      word: newWord,
-      meaning: newMeaning,
+      word: newWord.trim(),
+      meaning: newMeaning.trim(),
       level: newLevel,
-      example: newExample
+      example: newExample.trim()
     }
   ])
 
   if (error) {
     console.error(error)
+    alert("添加失败")
     return
   }
 
-  // 清空输入
   setNewWord('')
   setNewMeaning('')
   setNewExample('')
 
-  // 重新加载当前等级单词
   fetchWords(level)
 }
 
