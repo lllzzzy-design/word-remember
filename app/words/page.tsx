@@ -1,0 +1,60 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '../../lib/supabase'
+
+export default function WordsPage() {
+  const [words, setWords] = useState<any[]>([])
+
+  useEffect(() => {
+    fetchWords()
+  }, [])
+
+  async function fetchWords() {
+    const { data, error } = await supabase
+      .from('words')
+      .select('*')
+      .order('level', { ascending: true })
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    if (data) setWords(data)
+  }
+
+  return (
+    <main className="p-10">
+
+      <h1 className="text-2xl font-bold mb-6">全部单词</h1>
+
+      <table className="w-full border-collapse border">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border p-2">单词</th>
+            <th className="border p-2">释义</th>
+            <th className="border p-2">等级</th>
+            <th className="border p-2">错误次数</th>
+            <th className="border p-2">已掌握</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {words.map((word) => (
+            <tr key={word.id}>
+              <td className="border p-2">{word.word}</td>
+              <td className="border p-2">{word.meaning}</td>
+              <td className="border p-2">{word.level}</td>
+              <td className="border p-2">{word.wrong_count}</td>
+              <td className="border p-2">
+                {word.known ? '✅' : '❌'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+    </main>
+  )
+}
