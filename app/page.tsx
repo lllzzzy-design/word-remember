@@ -1,4 +1,5 @@
 'use client'
+
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -7,54 +8,56 @@ export default function Home() {
   const [words, setWords] = useState<any[]>([])
   const [current, setCurrent] = useState<any>(null)
   const [showMeaning, setShowMeaning] = useState(false)
-  const [level, setLevel] = useState('A1')
+
+  const [categories, setCategories] = useState<any[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+
   const [newWord, setNewWord] = useState('')
   const [newMeaning, setNewMeaning] = useState('')
-  const [newLevel, setNewLevel] = useState('A1')
   const [newExample, setNewExample] = useState('')
+  const [newCategoryName, setNewCategoryName] = useState('')
+
+  // ======================
+  // 加载分类
+  // ======================
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
   useEffect(() => {
-    fetchWords(level)
-  }, [level])
-  
-  async function fetchWords(selectedLevel: string) {
-  const { data, error } = await supabase
-    .from('words')
-    .select('*')
-    .eq('level', selectedLevel)
+    if (selectedCategory) {
+      fetchWords(selectedCategory)
+    }
+  }, [selectedCategory])
 
-  if (error) {
-    console.error(error)
-    return
+  async function fetchCategories() {
+    const { data } = await supabase
+      .from('categories')
+      .select('*')
+      .order('id', { ascending: true })
+
+    if (data) {
+      setCategories(data)
+      if (data.length > 0) {
+        setSelectedCategory(data[0].id)
+      }
+    }
   }
 
-  if (data && data.length > 0) {
-    setWords(data)
-    pickRandomWord(data)
-  } else {
-    setWords([])
-    setCurrent(null)
+  async function fetchWords(categoryId: number) {
+    const { data } = await supabase
+      .from('words')
+      .select('*')
+      .eq('category_id', categoryId)
+
+    if (data && data.length > 0) {
+      setWords(data)
+      pickRandomWord(data)
+    } else {
+      setWords([])
+      setCurrent(null)
+    }
   }
-}
-
-async function deleteWord(id: number) {
-  const confirmDelete = confirm("确定删除这个单词吗？")
-
-  if (!confirmDelete) return
-
-  const { error } = await supabase
-    .from('words')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error(error)
-    return
-  }
-
-  // 重新加载当前等级
-  fetchWords(level)
-}
 
   function pickRandomWord(wordList: any[]) {
     const random =
@@ -66,154 +69,124 @@ async function deleteWord(id: number) {
   function nextWord() {
     pickRandomWord(words)
   }
-  
+
   async function addWord() {
-
-  if (!newWord.trim() || 
-      !newMeaning.trim() || 
-      !newExample.trim()) {
-    alert("请完整填写单词、释义和例句")
-    return
-  }
-
-  const { error } = await supabase.from('words').insert([
-    {
-      word: newWord.trim(),
-      meaning: newMeaning.trim(),
-      level: newLevel,
-      example: newExample.trim()
+    if (!newWord.trim() || !selectedCategory) {
+      alert("单词和分类不能为空")
+      return
     }
-  ])
 
-  if (error) {
-    console.error(error)
-    alert("添加失败")
-    return
+    await supabase.from('words').insert([
+      {
+        word: newWord.trim(),
+        meaning: newMeaning.trim() || null,
+        example: newExample.trim() || null,
+        category_id: selectedCategory
+      }
+    ])
+
+    setNewWord('')
+    setNewMeaning('')
+    setNewExample('')
+    fetchWords(selectedCategory)
   }
 
-  setNewWord('')
-  setNewMeaning('')
-  setNewExample('')
+  async function addCategory() {
+    if (!newCategoryName.trim()) return
 
-  fetchWords(level)
-}
+    const { error } = await supabase
+      .from('categories')
+      .insert([{ name: newCategoryName.trim() }])
 
-  if (!current) {
+    if (error) {
+      alert("分类已存在")
+      return
+    }
+
+    setNewCategoryName('')
+    fetchCategories()
+  }
+
   return (
-    <main className="p-10">
-      <div>暂无该等级单词</div>
-    </main>
-  )
-}
+    <main className="min-h-screen bg-gray-50 flex justify-center items-center">
 
-  return (
-    <main className="flex flex-col items-center justify-center h-screen">
-<div className="mb-10 border p-6 rounded w-96">
+      <div className="bg-white p-8 rounded-2xl shadow-md w-96">
 
-  <h2 className="text-lg font-bold mb-4">添加单词</h2>
+        <h2 className="text-xl font-semibold mb-4">添加分类</h2>
 
-<Link
-  href="/words"
-  className="absolute top-4 right-4 bg-gray-200 px-3 py-1 rounded"
+        <div className="flex gap-2 mb-6">
+          <input
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="新分类名称"
+            className="border p-2 rounded w-full"
+          />
+          <button
+            onClick={addCategory}
+            className="bg-gray-900 text-white px-4 rounded"
+          >
+            添加
+          </button>
+        </div>
+
+        <h2 className="text-xl font-semibold mb-4">添加单词</h2>
+
+        <select
+          value={selectedCategory || ''}
+          onChange={(e) => setSelectedCategory(Number(e.target.value))}
+          className="border p-2 mb-4 w-full rounded"
+        >
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          value={newWord}
+          onChange={(e) => setNewWord(e.target.value)}
+          placeholder="单词"
+          className="border p-2 mb-2 w-full rounded"
+        />
+
+        <input
+          value={newMeaning}
+          onChange={(e) => setNewMeaning(e.target.value)}
+          placeholder="释义"
+          className="border p-2 mb-2 w-full rounded"
+        />
+
+        <input
+          value={newExample}
+          onChange={(e) => setNewExample(e.target.value)}
+          placeholder="例句"
+          className="border p-2 mb-4 w-full rounded"
+        />
+
+        <button
+          onClick={addWord}
+          className="bg-gray-900 text-white px-4 py-2 rounded w-full"
+        >
+          添加单词
+        </button>
+
+        <Link
+          href="/words"
+          className="block text-center mt-6 text-gray-500 hover:text-gray-700"
+        >
+          进入词库管理 →
+        </Link>
+
+        <Link
+  href="/study"
+  className="block text-center mt-4 text-gray-500 hover:text-gray-700"
 >
-  查看词库
+  进入学习模式 →
 </Link>
 
-  <input
-    value={newWord}
-    onChange={(e) => setNewWord(e.target.value)}
-    placeholder="单词"
-    className="border p-2 mb-2 w-full rounded"
-  />
-
-  <input
-    value={newMeaning}
-    onChange={(e) => setNewMeaning(e.target.value)}
-    placeholder="释义"
-    className="border p-2 mb-2 w-full rounded"
-  />
-
-  <input
-    value={newExample}
-    onChange={(e) => setNewExample(e.target.value)}
-    placeholder="例句"
-    className="border p-2 mb-2 w-full rounded"
-  />
-
-  <select
-    value={newLevel}
-    onChange={(e) => setNewLevel(e.target.value)}
-    className="border p-2 mb-4 w-full rounded"
-  >
-    <option value="A1">A1</option>
-    <option value="A2">A2</option>
-    <option value="B1">B1</option>
-    <option value="B2">B2</option>
-    <option value="C1">C1</option>
-    <option value="C2">C2</option>
-  </select>
-
-  <button
-    onClick={addWord}
-    className="bg-purple-500 text-white px-4 py-2 rounded w-full"
-  >
-    添加单词
-  </button>
-
-</div>
-      <select
-        value={level}
-        onChange={(e) => setLevel(e.target.value)}
-        className="mb-6 border p-2 rounded"
-      >
-        <option value="A1">A1</option>
-        <option value="A2">A2</option>
-        <option value="B1">B1</option>
-        <option value="B2">B2</option>
-        <option value="C1">C1</option>
-        <option value="C2">C2</option>
-      </select>
-
-      <div className="border p-10 rounded-xl shadow-lg w-96 text-center">
-
-        <h1 className="text-3xl font-bold mb-6">
-          {current.word}
-        </h1>
-
-        {showMeaning && (
-          <>
-            <p className="text-xl mb-2">{current.meaning}</p>
-            <p className="text-gray-500">{current.example}</p>
-          </>
-        )}
-
-        <div className="mt-6 flex flex-col gap-3">
-
-  {!showMeaning ? (
-    <button
-      onClick={() => setShowMeaning(true)}
-      className="bg-blue-500 text-white px-4 py-2 rounded"
-    >
-      显示释义
-    </button>
-  ) : (
-    <button
-      onClick={nextWord}
-      className="bg-green-500 text-white px-4 py-2 rounded"
-    >
-      下一个
-    </button>
-  )}
-
-  <button
-    onClick={() => deleteWord(current.id)}
-    className="bg-red-500 text-white px-4 py-2 rounded"
-  >
-    删除当前单词
-  </button>
-
-</div>
       </div>
+
     </main>
   )
 }
